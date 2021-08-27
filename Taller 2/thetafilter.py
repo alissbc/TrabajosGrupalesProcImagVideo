@@ -39,48 +39,33 @@ class thetaFilter:
         if self.theta % 180 == 0:
             self.theta = 0
 
-        # Definición inicial de puntos a theta + delta_theta y theta - delta_theta
-        Px1 = -half_x
-        Px2 = half_x
-        Py1 = np.tan((self.theta + self.delta_theta + 0.1) * np.pi / 180)*Px1
-        Py2 = np.tan((self.theta + self.delta_theta + 0.1) * np.pi / 180)*Px2
-        Py3 = np.tan((self.theta - self.delta_theta + 0.1) * np.pi / 180) * Px1
-        Py4 = np.tan((self.theta - self.delta_theta + 0.1) * np.pi / 180) * Px2
+        for i in range(filter_mask.shape[0]):
+            for j in range(filter_mask.shape[1]):
+                the = np.arctan2((j - half_y), (i - half_x)) * 180 / np.pi
 
-        # Generación de máscara de filtrado para caso 0º
-        if self.theta == 0:
-            for i in range(0,filter_mask.shape[0]):
-                for j in range(int(Py1+half_x), int(Py3 + half_x)):
+
+                if (the <= (self.theta + self.delta_theta) and the >= (self.theta - self.delta_theta)) or \
+                        ((the) <= (self.theta + self.delta_theta - 180) and (the) >= ( self.theta - self.delta_theta - 180)) or \
+                        ((the) <= (self.theta + self.delta_theta + 180) and (the) >= ( self.theta - self.delta_theta + 180)):
+                    # print(the)
                     filter_mask[i][j] = 1
-
-        # Generación de máscara de filtrado para casos diferentes a vertical y horizontal
-        if self.theta != 0 and self.theta != 90:
-            for j in range(0, filter_mask.shape[1]):
-                y = int((Py3 + (j-half_y - Px1) * (Py2-Py3)/(Px2-Px1)) + half_y)
-                y1 = int((Py1 + (j-half_y - Px1) * (Py1 - Py4) / (Px1 - Px2)) + half_y)
-                #print(j, y, y1)
-                for i in range(0, filter_mask.shape[0]):
-                    if i <= y and i >= y1:
-                        filter_mask[i][j] = 1
-
-        # Generación de máscara de filtrado para caso 90º
-        if self.theta == 90:
-            Py1 = np.tan((0 + self.delta_theta + 0.1) * np.pi / 180) * Px1
-            Py3 = np.tan((0 - self.delta_theta + 0.1) * np.pi / 180) * Px1
-            for i in range(0,filter_mask.shape[0]):
-                for j in range(int(Py1+half_x), int(Py3 + half_x)):
-                    filter_mask[j][i] = 1
+        filter_mask[half_y, half_x] = 1
 
         # Aplicación del filtro con la máscara sobre la imagen fft
         filter_image_fft = filter_mask * image_fft_view
         fft_filtered = image_gray_fft_shift * filter_mask
         image_filtered = np.fft.ifft2(np.fft.fftshift(fft_filtered))
         image_filtered = np.absolute(image_filtered)
+        image_filtered -= np.min(image_filtered)
         image_filtered /= np.max(image_filtered)
-        # cv2.imshow('Imagen_fft', image_fft_view)
-        # cv2.imshow('Imagen_filtrada', filter_image_fft)
-        # cv2.imshow("Image", image_filtered)
-        # cv2.waitKey(0)
-        return image_filtered
 
+        N = 11
+        name_2 = cv2.blur(image_filtered, (N, N))
+        name_2_2 = cv2.blur(np.power(image_filtered, 2), (N, N))
+        valida = name_2_2 - np.power(name_2, 2)
+        name_2_std = np.sqrt(name_2_2 - np.power(name_2, 2))
+        name_2_std /= np.max(name_2_std)
+        mask_std = name_2_std > 0.47
 
+        image_final = mask_std.astype(np.float) * image_filtered
+        return image_final

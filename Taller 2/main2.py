@@ -18,11 +18,13 @@ T1 = thetaFilter(path_file)
 
 # Implementación de banco de 4 filtros y reconstrucción de imagen con base a estos
 theta = [0, 45, 90, 135]
+delta_theta = 25
 c = 1
 new_image = np.zeros_like(T1.image, dtype=float)
 for the in theta:
-    T1.set_theta(the, 5)
+    T1.set_theta(the, delta_theta)
     name = f'img_{c}'
+    #print(name)
     name = T1.filtering()
     new_image += T1.filtering()
     cv2.imshow(f'Imagen_{the}', name)
